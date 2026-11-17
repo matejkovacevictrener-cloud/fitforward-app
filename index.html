@@ -14,7 +14,6 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="manifest" id="mf" href="manifest.webmanifest">
 <style>
   html,body{margin:0;background:#080808;color:#F3F0ED;font-family:Exo,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
   #ffboot{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;box-sizing:border-box;text-align:center}
@@ -36,7 +35,7 @@
 (function(){
 'use strict';
 var API = 'https://script.google.com/macros/s/AKfycbwENVDy1BtT1cpndEtN9jy5N1LJUTpEPMWoEyCtM06uad9bmzfgHVCo5QOO32gCrTM/exec';
-var SHELL_V = '1';
+var SHELL_V = '2';
 
 function ls(k, v){ try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } }
 function boot(title, text, retry){
@@ -49,21 +48,21 @@ function boot(title, text, retry){
 var u = new URL(location.href);
 var K = (u.searchParams.get('k') || (location.hash.match(/k=([A-Za-z0-9_-]+)/) || [])[1] || '').replace(/[^A-Za-z0-9_-]/g, '');
 if (K) ls('ff_k', K); else K = ls('ff_k') || '';
-if (!K) { boot('Link nije potpun', 'Otvori link koji ti je poslao trener. Nakon toga aplikaciju možeš dodati na početni zaslon.'); return; }
+if (!K) {
+  var standalone = window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  boot('Link nije potpun', standalone
+    ? 'Ova ikona ne zna čija je aplikacija. Obriši ikonu s početnog zaslona, otvori link koji ti je poslao trener u Safariju (ili Chromeu) i iz njega ponovno dodaj aplikaciju na početni zaslon.'
+    : 'Otvori link koji ti je poslao trener. Nakon toga aplikaciju možeš dodati na početni zaslon.');
+  return;
+}
 // adresa uvijek nosi kod – ikona na početnom zaslonu tako otvara baš tvoju aplikaciju
 if (u.searchParams.get('k') !== K) { u.searchParams.set('k', K); u.hash = ''; try { history.replaceState(history.state, '', u.toString()); } catch (e) {} }
 
-// manifest s tvojim kodom (Android/Chrome: ikona otvara tvoju aplikaciju)
-try {
-  var base = location.origin + location.pathname.replace(/[^/]*$/, '');
-  var mf = { name: 'Fit Forward', short_name: 'Fit Forward', description: 'Tvoj trening, prehrana i napredak',
-    start_url: base + '?k=' + K, scope: base, id: base, display: 'standalone', orientation: 'portrait',
-    background_color: '#080808', theme_color: '#080808', lang: 'hr',
-    icons: [{ src: base + 'icon-192.png', sizes: '192x192', type: 'image/png' },
-            { src: base + 'icon-512.png', sizes: '512x512', type: 'image/png' },
-            { src: base + 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }] };
-  document.getElementById('mf').setAttribute('href', 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(mf)));
-} catch (e) {}
+// Ikona na početnom zaslonu mora otvarati baš tvoju aplikaciju.
+// iPhone/iPad (Safari) za ikonu uzima adresu stranice – s tvojim kodom – samo ako stranica NEMA manifesta,
+// a Android/Chrome koristi manifest i kod pamti sam (gore, ff_k).
+var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (!IOS) { var mfl = document.createElement('link'); mfl.rel = 'manifest'; mfl.href = 'manifest.webmanifest'; document.head.appendChild(mfl); }
 
 /* ---------- google.script.run → isti pozivi preko interneta ---------- */
 function call(fn, args){
