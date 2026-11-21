@@ -34,8 +34,14 @@
  * u pozadini dohvati najnovije i sve pozive šalje istom Apps Scriptu. */
 (function(){
 'use strict';
-var API = 'https://script.google.com/macros/s/AKfycbwENVDy1BtT1cpndEtN9jy5N1LJUTpEPMWoEyCtM06uad9bmzfgHVCo5QOO32gCrTM/exec';
-var SHELL_V = '2';
+var API0 = 'https://script.google.com/macros/s/AKfycbwENVDy1BtT1cpndEtN9jy5N1LJUTpEPMWoEyCtM06uad9bmzfgHVCo5QOO32gCrTM/exec', API = API0;
+var SHELL_V = '3';
+(function(){                                                         // samo za trenerovo testiranje: ?api=<ID probne verzije>, ?api=off vraća normalno
+  var a = (new URL(location.href).searchParams.get('api') || '').replace(/[^A-Za-z0-9_-]/g, '');
+  if (a === 'off') ls('ff_api', null); else if (/^AKfycb[A-Za-z0-9_-]{30,}$/.test(a)) ls('ff_api', a);
+  var s = ls('ff_api'); if (s) API = 'https://script.google.com/macros/s/' + s + '/exec';
+  try { caches.open('ff-meta').then(function(c){ return c.put('api', new Response(API)); }).catch(function(){}); } catch (e) {}   // service worker zna kamo pitati tekst obavijesti
+})();
 
 function ls(k, v){ try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } }
 function boot(title, text, retry){
@@ -93,7 +99,7 @@ window.google = { script: {
 } };
 
 /* ---------- sučelje: odmah zadnje spremljeno, u pozadini najnovije ---------- */
-var UI_KEY = 'ff_ui_' + K;
+var UI_KEY = 'ff_ui_' + K + (API !== API0 ? '_t' : '');
 function inject(html){
   var doc = new DOMParser().parseFromString(html, 'text/html');
   doc.head.querySelectorAll('style, link[rel="stylesheet"], link[rel="preconnect"]').forEach(function(n){ document.head.appendChild(document.importNode(n, true)); });
